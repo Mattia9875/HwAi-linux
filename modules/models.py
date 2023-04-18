@@ -9,10 +9,12 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_s
 IMAGESIZE = 128
 
 def minimalmodel(image_size=128, num_classes=16):
-    mobilenet =tf.keras.applications.MobileNetV2(
+    mobilenet =tf.keras.applications.MobileNetV3Small(
         input_shape=(IMAGESIZE,IMAGESIZE,3),
+        minimalistic=True,
         alpha=1.0,
         include_top=False,
+        include_preprocessing=False,
         weights='imagenet'
     )
     mobilenet._name = "mnet"
@@ -21,7 +23,7 @@ def minimalmodel(image_size=128, num_classes=16):
     model = Sequential()
     model.add(mobilenet)
     model.add(layers.GlobalAveragePooling2D())
-    model.add(layers.Dropout(0.2))
+    model.add(layers.Dropout(0.35))
     model.add(layers.Dense(num_classes, activation='softmax'))
     
     model.compile(
