@@ -111,7 +111,7 @@ def deep_tiny_x5_xl():
     model.add(layers.Dense(24, activation='relu'))
     model.add(layers.Dropout(0.15))
 
-    model.add(layers.Dense(16, activation='softmax'))
+    model.add(layers.Dense(8, activation='softmax'))
     model.compile(
           loss='categorical_crossentropy',
           optimizer=optimizers.Adam(learning_rate=0.00001),

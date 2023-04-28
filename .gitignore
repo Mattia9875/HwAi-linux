@@ -1,8 +1,4 @@
 __pycache__/
-testing_fullsize/
-dataset/
-newds/
-testds/
 __pycache__/models.cpython-39.pyc
 __pycache__/mymodels.cpython-39.pyc
 __pycache__/utils.cpython-39.pyc

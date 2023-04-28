@@ -1,8 +1,10 @@
 # Repo for HwAi Project
 
-## mymodules
+## RottenCAM.v2i.folder
+The dataset
+## modules
 Some utility scripts and models
-## savedmodel
+## savedmodels
 Cointains the saved models after training
-## testing
-Contains testing dataset
+## Tflite
+Contains tflite files
