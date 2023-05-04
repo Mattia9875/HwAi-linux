@@ -1,9 +1,12 @@
 import os 
+import numpy as np
 from tqdm import tqdm
 from PIL import Image,ImageOps
 from pathlib import Path
 import imghdr,os
 from wand.image import Image as Im2
+import tensorflow as tf
+from tabulate import tabulate
 
 def import_images():
     SIZE = 512
@@ -62,3 +65,91 @@ def checkDuplicates():
         seen = set()
         dupes = [x for x in signatureList if x in seen or seen.add(x)]
         print(dupes)
+
+def keras_model_memory_usage(model, batch_size):
+    """
+    Return the estimated memory usage of a given Keras model in bytes.
+    This includes the model weights and layers, but excludes the dataset.
+    The model shapes are multipled by the batch size, but the weights are not.
+    Args:
+        model: A Keras model.
+        batch_size: The batch size you intend to run the model with. If you
+            have already specified the batch size in the model itself, then
+            pass `1` as the argument here.
+    Returns:
+        An estimate of the Keras model's memory usage in bytes..
+    """
+    default_dtype = tf.keras.backend.floatx()
+    shapes_mem_count = []
+    head = []
+    table_vert = []
+    table_vert.append(["N#","Layer","Datatype","Memory (KB)","Shape"])
+    internal_model_mem_count = 0
+    count = 1
+
+    if isinstance(model, list):
+        trainable_count = 0
+        non_trainable_count = 0
+        for layer in model:
+            l_list = []
+            single_layer_mem = tf.as_dtype(layer.dtype or default_dtype).size
+            out_shape = layer.output_shape
+            if isinstance(out_shape, list):
+                out_shape = out_shape[0]
+            for s in out_shape:
+                if s is None:
+                    continue
+                single_layer_mem *= s
+            l_list.append(count)
+            l_list.append(str(layer.name))
+            l_list.append(str(layer.dtype))
+            l_list.append(single_layer_mem/1000) #in Kb
+            l_list.append(out_shape)
+            count += 1
+            table_vert.append(l_list)
+            head.append(str(layer.name+ " (KB)"))
+            shapes_mem_count.append(single_layer_mem/1000) #in Kb
+            
+            trainable_count += sum(
+                            [tf.keras.backend.count_params(p) for p in layer.trainable_weights]
+                            )
+            non_trainable_count += sum(
+                            [tf.keras.backend.count_params(p) for p in layer.non_trainable_weights]
+                            )
+    else:
+        for layer in model.layers:
+            l_list = []
+            single_layer_mem = tf.as_dtype(layer.dtype or default_dtype).size
+            out_shape = layer.output_shape
+            if isinstance(out_shape, list):
+                out_shape = out_shape[0]
+            for s in out_shape:
+                if s is None:
+                    continue
+                single_layer_mem *= s
+            l_list.append(count)
+            l_list.append(str(layer.name))
+            l_list.append(str(layer.dtype))
+            l_list.append(single_layer_mem/1000) #in Kb
+            l_list.append(out_shape)
+            count += 1
+            table_vert.append(l_list)
+            head.append(str(layer.name + " (KB)"))
+            shapes_mem_count.append(single_layer_mem/1000) #in Kb
+
+    
+        trainable_count = sum(
+            [tf.keras.backend.count_params(p) for p in model.trainable_weights]
+        )
+        non_trainable_count = sum(
+            [tf.keras.backend.count_params(p) for p in model.non_trainable_weights]
+        )
+    
+    max_act=np.sum(np.sort(np.array(shapes_mem_count))[-2:])
+    print(tabulate(table_vert,headers='firstrow', tablefmt='fancy_grid'))
+    table = [head,shapes_mem_count]
+    print(tabulate(table, headers='firstrow', tablefmt='fancy_grid'))
+    table = [["Internal Memory (KB)","Trainable paramaters (kN)","Non-trainable parameters (kN)","Max Consecutive Activation (KB)"],[internal_model_mem_count/1000,trainable_count/1000,non_trainable_count/1000,max_act]]
+    print(tabulate(table, headers='firstrow', tablefmt='fancy_grid'))
+
+    return head,shapes_mem_count, internal_model_mem_count,trainable_count,non_trainable_count
