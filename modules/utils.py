@@ -83,10 +83,10 @@ def keras_model_memory_usage(model, batch_size):
     shapes_mem_count = []
     head = []
     table_vert = []
+    table_vert.append([model.name])
     table_vert.append(["N#","Layer","Datatype","Memory (KB)","Shape"])
     internal_model_mem_count = 0
     count = 1
-
     if isinstance(model, list):
         trainable_count = 0
         non_trainable_count = 0
@@ -94,6 +94,7 @@ def keras_model_memory_usage(model, batch_size):
             l_list = []
             single_layer_mem = tf.as_dtype(layer.dtype or default_dtype).size
             out_shape = layer.output_shape
+            print(layer.__dict__)
             if isinstance(out_shape, list):
                 out_shape = out_shape[0]
             for s in out_shape:
@@ -147,9 +148,42 @@ def keras_model_memory_usage(model, batch_size):
     
     max_act=np.sum(np.sort(np.array(shapes_mem_count))[-2:])
     print(tabulate(table_vert,headers='firstrow', tablefmt='fancy_grid'))
-    table = [head,shapes_mem_count]
-    print(tabulate(table, headers='firstrow', tablefmt='fancy_grid'))
-    table = [["Internal Memory (KB)","Trainable paramaters (kN)","Non-trainable parameters (kN)","Max Consecutive Activation (KB)"],[internal_model_mem_count/1000,trainable_count/1000,non_trainable_count/1000,max_act]]
+    #table = [head,shapes_mem_count]
+    #print(tabulate(table, headers='firstrow', tablefmt='fancy_grid'))
+    table = [ ["Internal Memory (KB)","Trainable paramaters (kN)","Non-trainable parameters (kN)","Max Consecutive Activation (KB)"],
+              [internal_model_mem_count/1000,trainable_count/1000,non_trainable_count/1000,max_act]]
     print(tabulate(table, headers='firstrow', tablefmt='fancy_grid'))
 
     return head,shapes_mem_count, internal_model_mem_count,trainable_count,non_trainable_count
+
+
+
+def prepare(ds, shuffle=False, augment=False, batch_size=32,img_size=96):
+  
+    AUTOTUNE = tf.data.AUTOTUNE
+    aug = tf.keras.models.Sequential([
+        tf.keras.layers.RandomFlip(mode="horizontal_and_vertical"),
+        tf.keras.layers.RandomRotation(factor=(-0.05, 0.05),fill_mode="constant"),
+        tf.keras.layers.RandomZoom( height_factor=(-0.05, 0.05), fill_mode="constant"),
+        tf.keras.layers.RandomBrightness(0.05, value_range=(0, 1))])
+
+    normalization = tf.keras.models.Sequential([ 
+        tf.keras.layers.Resizing(img_size, img_size),
+        tf.keras.layers.Rescaling(1./255)])
+    # Resize and rescale all datasets.
+    ds = ds.map(lambda x, y: (normalization(x), y), 
+                num_parallel_calls=AUTOTUNE)
+
+    if shuffle:
+        ds = ds.shuffle(1000)
+
+    # Batch all datasets.
+    #ds = ds.batch(batch_size)
+
+    # Use data augmentation only on the training set.
+    if augment:
+        ds = ds.map(lambda x, y: (aug(x, training=True), y), 
+                    num_parallel_calls=AUTOTUNE)
+
+    # Use buffered prefetching on all datasets.
+    return ds.cache().prefetch(buffer_size=AUTOTUNE)

@@ -12,7 +12,8 @@ def CustomSepConv(model, channels, stride, block_number):
     name = "CBlock_"+str(block_number)
     model.add(layers.SeparableConv2D(np.round(channels), (3, 3),strides=(stride,stride),padding="same",name = name+"_SepConv2D"))
     model.add(layers.BatchNormalization(name=name+"_BatchNorm"))
-    model.add(layers.Activation("relu",name=name+"_ReLu"))
+    model.add(layers.ReLU(max_value=6.0,name=name+"_ReLu"))
+    print((3,3,np.round(channels)),(1,1,np.round(channels)))
     return
 
 def MyV2Conv(model, in_c,out_c, stride, block_number,t):
@@ -86,7 +87,7 @@ def deep_tiny_x5_xl():
       )
     return model
 
-def JoJoBizzareModelScalable_r(num_classes=8,input_size=96,alpha=1.0,beta=3, strides=2,channels=32,gain=1.0):
+def JoJoBizzareModelScalable(num_classes=8,input_size=96,alpha=1.0,beta=3, strides=2,channels=32,gain=1.0):
     """
     Args:
         num_classes: number of output classes
@@ -98,36 +99,31 @@ def JoJoBizzareModelScalable_r(num_classes=8,input_size=96,alpha=1.0,beta=3, str
     Returns:
         A keras model
     """
-    strname= "jojo_nodense_sr_n"+str(num_classes)+"_r"+str(input_size)+"_a"+str(alpha)+"_b"+str(beta)+"_g"+str(gain)+"_strides"+str(strides)
+    strname= "jojo_n"+str(num_classes)+"_r"+str(input_size)+"_a"+str(alpha)+"_b"+str(beta)+"_g"+str(gain)+"_strides"+str(strides)
     model = Sequential(name=strname)
 
     #input layer
     model.add(layers.InputLayer(input_shape=(input_size,input_size,3), name="input_layer"))
     # first layer is a standard conv2D
     model.add(layers.Conv2D(np.round(alpha*channels), (3, 3),strides=(strides,strides),padding="same",name="Conv0"))
-    
+
     for i in range(1,beta+1):
-        # The second part of the block reduces the size of the feature map
-        ch=(alpha*channels*((i*2)**gain))
+        ch=(alpha*channels*(i*gain))
         CustomSepConv(model=model, channels=ch, stride=2, block_number=i)
-        #MyV2Conv(model=model, in_c=ch,out_c=ch,stride=s,block_number=i,t=6)
 
     #avgpool
     model.add(layers.GlobalAveragePooling2D())
-
-    #model.add(layers.Dense(24, activation='relu'))
-    #model.add(layers.Dropout(0.15))
 
     model.add(layers.Dense(num_classes, activation='softmax'))
 
     model.compile(
           loss='categorical_crossentropy',
-          optimizer=optimizers.Adam(learning_rate=0.00001),
+          optimizer=optimizers.Adam(learning_rate=0.00005),
           metrics=['accuracy']
       )
     return model
 
-def JoJoBizzareModelScalable(num_classes=8,input_size=96,alpha=1.0,beta=3,channels=32,g=1.0):
+def JoJoBizzareModelScalableold(num_classes=8,input_size=96,alpha=1.0,beta=3,channels=32,g=1.0):
     """
     Return the estimated memory usage of a given Keras model in bytes.
     This includes the model weights and layers, but excludes the dataset.
@@ -241,6 +237,7 @@ def JoJoBizzareModel(num_classes=8,input_size=128,alpha=1.0):
     return model
 
 def le_net_model():
+
     model = Sequential()
     model.add(layers.Conv2D(6, 5, activation= 'tanh', input_shape=(IMAGESIZE,IMAGESIZE,3)))
     model.add(layers.AveragePooling2D (2))
