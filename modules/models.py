@@ -13,7 +13,7 @@ def CustomSepConv(model, channels, stride, block_number):
     model.add(layers.SeparableConv2D(np.round(channels), (3, 3),strides=(stride,stride),padding="same",name = name+"_SepConv2D"))
     model.add(layers.BatchNormalization(name=name+"_BatchNorm"))
     model.add(layers.ReLU(max_value=6.0,name=name+"_ReLu"))
-    print((3,3,np.round(channels)),(1,1,np.round(channels)))
+    #print((3,3,np.round(channels)),(1,1,np.round(channels)))
     return
 
 def MyV2Conv(model, in_c,out_c, stride, block_number,t):

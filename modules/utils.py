@@ -66,7 +66,7 @@ def checkDuplicates():
         dupes = [x for x in signatureList if x in seen or seen.add(x)]
         print(dupes)
 
-def keras_model_memory_usage(model, batch_size):
+def keras_model_memory_usage(model, batch_size,log=True):
     """
     Return the estimated memory usage of a given Keras model in bytes.
     This includes the model weights and layers, but excludes the dataset.
@@ -83,8 +83,7 @@ def keras_model_memory_usage(model, batch_size):
     shapes_mem_count = []
     head = []
     table_vert = []
-    table_vert.append([model.name])
-    table_vert.append(["N#","Layer","Datatype","Memory (KB)","Shape"])
+    table_vert.append(["N#","Layer","Datatype","Feature Map Memory (KB)","Parameters","Output Shape"])
     internal_model_mem_count = 0
     count = 1
     if isinstance(model, list):
@@ -94,17 +93,21 @@ def keras_model_memory_usage(model, batch_size):
             l_list = []
             single_layer_mem = tf.as_dtype(layer.dtype or default_dtype).size
             out_shape = layer.output_shape
-            print(layer.__dict__)
             if isinstance(out_shape, list):
                 out_shape = out_shape[0]
             for s in out_shape:
                 if s is None:
                     continue
                 single_layer_mem *= s
+            wh = layer.weights
+            num_param = 0
+            for elem in wh:
+                num_param += tf.keras.backend.count_params(elem)
             l_list.append(count)
             l_list.append(str(layer.name))
             l_list.append(str(layer.dtype))
             l_list.append(single_layer_mem/1000) #in Kb
+            l_list.append(num_param)
             l_list.append(out_shape)
             count += 1
             table_vert.append(l_list)
@@ -128,10 +131,15 @@ def keras_model_memory_usage(model, batch_size):
                 if s is None:
                     continue
                 single_layer_mem *= s
+            wh = layer.weights
+            num_param = 0
+            for elem in wh:
+                num_param += tf.keras.backend.count_params(elem)
             l_list.append(count)
             l_list.append(str(layer.name))
             l_list.append(str(layer.dtype))
             l_list.append(single_layer_mem/1000) #in Kb
+            l_list.append(num_param)
             l_list.append(out_shape)
             count += 1
             table_vert.append(l_list)
@@ -147,14 +155,17 @@ def keras_model_memory_usage(model, batch_size):
         )
     
     max_act=np.sum(np.sort(np.array(shapes_mem_count))[-2:])
-    print(tabulate(table_vert,headers='firstrow', tablefmt='fancy_grid'))
-    #table = [head,shapes_mem_count]
-    #print(tabulate(table, headers='firstrow', tablefmt='fancy_grid'))
+    table_vert.append(["All",model.name,"","{:.3f}".format(np.sum(np.array(shapes_mem_count))),str((trainable_count+non_trainable_count)/1000)+" K",""])
     table = [ ["Internal Memory (KB)","Trainable paramaters (kN)","Non-trainable parameters (kN)","Max Consecutive Activation (KB)"],
-              [internal_model_mem_count/1000,trainable_count/1000,non_trainable_count/1000,max_act]]
-    print(tabulate(table, headers='firstrow', tablefmt='fancy_grid'))
+                [internal_model_mem_count/1000,trainable_count/1000,non_trainable_count/1000,max_act]]
+    if log:
+        
+        print(tabulate(table_vert,headers='firstrow', tablefmt='fancy_grid'))
+        print(tabulate(table, headers='firstrow', tablefmt='fancy_grid'))
 
-    return head,shapes_mem_count, internal_model_mem_count,trainable_count,non_trainable_count
+    return_values = [trainable_count+non_trainable_count,max_act,count-1]
+    return return_values, table_vert
+    #return head,shapes_mem_count, internal_model_mem_count,trainable_count,non_trainable_count
 
 
 
@@ -187,3 +198,12 @@ def prepare(ds, shuffle=False, augment=False, batch_size=32,img_size=96):
 
     # Use buffered prefetching on all datasets.
     return ds.cache().prefetch(buffer_size=AUTOTUNE)
+
+def predict_from_dataset(ds,model):
+    predictions = np.array([])
+    labels =  np.array([])
+    for x, y in tqdm(ds):
+        # selecet the class for which i have the max confidence
+        predictions = np.concatenate([predictions, np.argmax(model.predict(x,verbose=0), axis = -1)])
+        labels = np.concatenate([labels, np.argmax(y.numpy(), axis=-1)])
+    return labels,predictions

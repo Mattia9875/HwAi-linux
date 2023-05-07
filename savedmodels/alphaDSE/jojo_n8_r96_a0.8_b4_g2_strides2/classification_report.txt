@@ -1,0 +1,14 @@
+              precision    recall  f1-score   support
+
+     F_Apple       0.90      0.81      0.85       115
+    F_Banana       0.90      0.96      0.93       161
+   F_Oranges       0.91      0.94      0.93        88
+    F_Tomato       0.88      0.94      0.91       147
+     S_Apple       0.85      0.79      0.82       115
+    S_Banana       0.93      0.97      0.95       140
+   S_Oranges       0.93      0.90      0.92        93
+    S_Tomato       0.91      0.85      0.88       116
+
+    accuracy                           0.90       975
+   macro avg       0.90      0.90      0.90       975
+weighted avg       0.90      0.90      0.90       975
