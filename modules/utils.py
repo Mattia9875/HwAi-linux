@@ -66,6 +66,28 @@ def checkDuplicates():
         dupes = [x for x in signatureList if x in seen or seen.add(x)]
         print(dupes)
 
+def keras_layer_mac_ops(layer):
+    out_shape = layer.output_shape
+    input_shape = layer.input_shape
+    name = layer.get_config()["name"]
+    if "SepConv" in name:
+        # Formula is R x S x C x E x F + C x M x E x F
+        MACs = layer.get_config()["kernel_size"][0] * layer.get_config()["kernel_size"][1] * input_shape[3] * out_shape[1] * out_shape[2] + input_shape[3] * out_shape[3] * out_shape[1] * out_shape[2]
+    elif "Conv" in name:
+        # Formula is R x S x C x E x F x M
+        MACs = layer.get_config()["kernel_size"][0] * layer.get_config()["kernel_size"][1] * input_shape[3] * out_shape[1] * out_shape[2] * out_shape[3]
+    elif "dense" in name:
+        # Formula is H x W
+        MACs = input_shape[1] * out_shape[1]
+    else:
+        MACs = 0
+    return MACs
+
+def keras_model_mac_ops(model):
+    MACs = []
+    for layer in model.layers:
+        MACs.append(keras_layer_mac_ops(layer))
+    return np.sum(np.array(MACs))
 def keras_model_memory_usage(model, batch_size,log=True):
     """
     Return the estimated memory usage of a given Keras model in bytes.
@@ -82,8 +104,9 @@ def keras_model_memory_usage(model, batch_size,log=True):
     default_dtype = tf.keras.backend.floatx()
     shapes_mem_count = []
     head = []
+    MACs = []
     table_vert = []
-    table_vert.append(["N#","Layer","Datatype","Feature Map Memory (KB)","Parameters","Output Shape"])
+    table_vert.append(["N#","Layer","Datatype","Feature Map Memory (KB)","MACs","Parameters","Output Shape"])
     internal_model_mem_count = 0
     count = 1
     if isinstance(model, list):
@@ -92,6 +115,7 @@ def keras_model_memory_usage(model, batch_size,log=True):
         for layer in model:
             l_list = []
             single_layer_mem = tf.as_dtype(layer.dtype or default_dtype).size
+            MACs.append(keras_layer_mac_ops(layer))
             out_shape = layer.output_shape
             if isinstance(out_shape, list):
                 out_shape = out_shape[0]
@@ -107,6 +131,7 @@ def keras_model_memory_usage(model, batch_size,log=True):
             l_list.append(str(layer.name))
             l_list.append(str(layer.dtype))
             l_list.append(single_layer_mem/1000) #in Kb
+            l_list.append(keras_layer_mac_ops(layer))
             l_list.append(num_param)
             l_list.append(out_shape)
             count += 1
@@ -124,6 +149,7 @@ def keras_model_memory_usage(model, batch_size,log=True):
         for layer in model.layers:
             l_list = []
             single_layer_mem = tf.as_dtype(layer.dtype or default_dtype).size
+            MACs.append(keras_layer_mac_ops(layer))
             out_shape = layer.output_shape
             if isinstance(out_shape, list):
                 out_shape = out_shape[0]
@@ -139,6 +165,7 @@ def keras_model_memory_usage(model, batch_size,log=True):
             l_list.append(str(layer.name))
             l_list.append(str(layer.dtype))
             l_list.append(single_layer_mem/1000) #in Kb
+            l_list.append(keras_layer_mac_ops(layer))
             l_list.append(num_param)
             l_list.append(out_shape)
             count += 1
@@ -155,7 +182,7 @@ def keras_model_memory_usage(model, batch_size,log=True):
         )
     
     max_act=np.sum(np.sort(np.array(shapes_mem_count))[-2:])
-    table_vert.append(["All",model.name,"","{:.3f}".format(np.sum(np.array(shapes_mem_count))),str((trainable_count+non_trainable_count)/1000)+" K",""])
+    table_vert.append(["All",model.name,"","{:.3f}".format(np.sum(np.array(shapes_mem_count))),str(np.sum(np.array(MACs))),str((trainable_count+non_trainable_count)/1000)+" K",""])
     table = [ ["Internal Memory (KB)","Trainable paramaters (kN)","Non-trainable parameters (kN)","Max Consecutive Activation (KB)"],
                 [internal_model_mem_count/1000,trainable_count/1000,non_trainable_count/1000,max_act]]
     if log:
@@ -163,7 +190,7 @@ def keras_model_memory_usage(model, batch_size,log=True):
         print(tabulate(table_vert,headers='firstrow', tablefmt='fancy_grid'))
         print(tabulate(table, headers='firstrow', tablefmt='fancy_grid'))
 
-    return_values = [trainable_count+non_trainable_count,max_act,count-1]
+    return_values = [trainable_count+non_trainable_count,max_act,np.sum(np.array(MACs)),count-1]
     return return_values, table_vert
     #return head,shapes_mem_count, internal_model_mem_count,trainable_count,non_trainable_count
 
