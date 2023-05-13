@@ -87,11 +87,11 @@ def deep_tiny_x5_xl():
       )
     return model
 
-def JoJoBizzareModelScalable(num_classes=8,input_size=96,alpha=1.0,beta=3, strides=2,channels=32,gain=1.0):
+def JoJoBizzareModelScalable(num_classes=8,input_size=(96,96,3),alpha=1.0,beta=3, strides=2,channels=32,gain=1.0):
     """
     Args:
         num_classes: number of output classes
-        input_size : input feature map size (input_size,input_size,3)
+        input_size : input feature map size
         alpha: width multiplier
         beta: depth multiplier
         g: gain
@@ -99,11 +99,11 @@ def JoJoBizzareModelScalable(num_classes=8,input_size=96,alpha=1.0,beta=3, strid
     Returns:
         A keras model
     """
-    strname= "jojo_n"+str(num_classes)+"_r"+str(input_size)+"_a"+str(alpha)+"_b"+str(beta)+"_g"+str(gain)+"_strides"+str(strides)
+    strname= "jojo_n"+str(num_classes)+"_r"+str(input_size[0])+"x"+str(input_size[1])+"_a"+str(alpha)+"_b"+str(beta)+"_g"+str(gain)+"_strides"+str(strides)
     model = Sequential(name=strname)
 
     #input layer
-    model.add(layers.InputLayer(input_shape=(input_size,input_size,3), name="input_layer"))
+    model.add(layers.InputLayer(input_shape=input_size, name="input_layer"))
     # first layer is a standard conv2D
     model.add(layers.Conv2D(np.round(alpha*channels), (3, 3),strides=(strides,strides),padding="same",name="Conv0"))
 

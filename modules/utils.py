@@ -88,6 +88,7 @@ def keras_model_mac_ops(model):
     for layer in model.layers:
         MACs.append(keras_layer_mac_ops(layer))
     return np.sum(np.array(MACs))
+
 def keras_model_memory_usage(model, batch_size,log=True):
     """
     Return the estimated memory usage of a given Keras model in bytes.
@@ -195,8 +196,7 @@ def keras_model_memory_usage(model, batch_size,log=True):
     #return head,shapes_mem_count, internal_model_mem_count,trainable_count,non_trainable_count
 
 
-
-def prepare(ds, shuffle=False, augment=False, batch_size=32,img_size=96):
+def prepare(ds, shuffle=False, augment=False, normalize=True, batch_size=32,img_size=(96,96)):
   
     AUTOTUNE = tf.data.AUTOTUNE
     aug = tf.keras.models.Sequential([
@@ -205,11 +205,20 @@ def prepare(ds, shuffle=False, augment=False, batch_size=32,img_size=96):
         tf.keras.layers.RandomZoom( height_factor=(-0.05, 0.05), fill_mode="constant"),
         tf.keras.layers.RandomBrightness(0.05, value_range=(0, 1))])
 
+    rescale = tf.keras.models.Sequential([ 
+        tf.keras.layers.Resizing(img_size[0], img_size[1])
+        ])
+    
     normalization = tf.keras.models.Sequential([ 
-        tf.keras.layers.Resizing(img_size, img_size),
-        tf.keras.layers.Rescaling(1./255)])
+        tf.keras.layers.Rescaling(1./255)
+        ])
+
     # Resize and rescale all datasets.
-    ds = ds.map(lambda x, y: (normalization(x), y), 
+    ds = ds.map(lambda x, y: (rescale(x), y), 
+                num_parallel_calls=AUTOTUNE)
+    
+    if normalize:
+        ds = ds.map(lambda x, y: (normalization(x), y), 
                 num_parallel_calls=AUTOTUNE)
 
     if shuffle:
