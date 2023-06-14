@@ -13,7 +13,7 @@ def CustomSepConv(model, channels, stride, block_number):
     model.add(layers.SeparableConv2D(np.round(channels), (3, 3),strides=(stride,stride),padding="same",name = name+"_SepConv2D"))
     model.add(layers.BatchNormalization(name=name+"_BatchNorm"))
     model.add(layers.ReLU(max_value=6.0,name=name+"_ReLu"))
-    #print((3,3,np.round(channels)),(1,1,np.round(channels)))
+    model.add(layers.Dropout(0.01))
     return
 
 def MyV2Conv(model, in_c,out_c, stride, block_number,t):
@@ -107,13 +107,15 @@ def JoJoBizzareModelScalable(num_classes=8,input_size=(96,96,3),alpha=1.0,beta=3
     # first layer is a standard conv2D
     model.add(layers.Conv2D(np.round(alpha*channels), (3, 3),strides=(strides,strides),padding="same",name="Conv0"))
 
+    # Add beta layers
     for i in range(1,beta+1):
         ch=(alpha*channels*(i*gain))
         CustomSepConv(model=model, channels=ch, stride=2, block_number=i)
 
-    #avgpool
+    # Reduce last layer dimensions
     model.add(layers.GlobalAveragePooling2D())
 
+    # Final Classifier
     model.add(layers.Dense(num_classes, activation='softmax'))
 
     model.compile(

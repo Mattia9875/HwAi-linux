@@ -4,3 +4,5 @@ __pycache__/mymodels.cpython-39.pyc
 __pycache__/utils.cpython-39.pyc
 deprecated/
 logs/
+dataset_augmented/
+dataset_vanilla/
